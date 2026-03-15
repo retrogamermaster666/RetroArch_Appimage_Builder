@@ -1,0 +1,157 @@
+#!/bin/bash
+# RetroArch AppImage Launcher
+
+HERE=$(dirname "$(readlink -f "${0}")")
+
+# Set up environment variables
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS}"
+
+# Determine portable config directory
+if [ -n "$APPIMAGE" ]; then
+    APPIMAGE_DIR=$(dirname "$(readlink -f "$APPIMAGE")")
+    PORTABLE_ROOT="${APPIMAGE_DIR}/retroarch_portable_config"
+    APPIMAGE_PATH=$(readlink -f "$APPIMAGE")
+else
+    PORTABLE_ROOT="${HERE}/retroarch_portable_config"
+    APPIMAGE_PATH=""
+fi
+
+# Define the Hierarchical Structure
+CFG_BASE="${PORTABLE_ROOT}/config"
+SHARE_BASE="${PORTABLE_ROOT}/local/share"
+SYSTEM_BASE="${PORTABLE_ROOT}/system/bios"
+
+mkdir -p "${CFG_BASE}" "${SHARE_BASE}" "${SYSTEM_BASE}"
+
+# --- Portability Sync Logic ---
+sync_resource() {
+    local src="$1"
+    local dest="$2"
+    if [ ! -d "$dest" ]; then
+        echo "Deploying bundled $(basename "$dest") to portable folder..."
+        mkdir -p "$(dirname "$dest")"
+        cp -r "$src" "$dest"
+    else
+        # Sync new files from AppImage without overwriting existing ones
+        # This ensures new cores/info/assets are added to an existing portable setup
+        cp -rn "$src"/. "$dest"/ 2>/dev/null || true
+    fi
+}
+
+# Sync resources into the new hierarchy
+sync_resource "${HERE}/usr/lib/libretro"             "${SHARE_BASE}/libretro/cores"
+sync_resource "${HERE}/usr/share/libretro/info"      "${CFG_BASE}/cores"
+sync_resource "${HERE}/usr/share/retroarch/assets"   "${SHARE_BASE}/retroarch/assets"
+sync_resource "${HERE}/usr/share/retroarch/database" "${CFG_BASE}/database"
+sync_resource "${HERE}/usr/share/retroarch/autoconfig" "${SHARE_BASE}/retroarch/autoconfig"
+sync_resource "${HERE}/usr/share/retroarch/shaders/shaders_slang" "${CFG_BASE}/shaders"
+
+# --- Auto-Desktop Shortcut Feature ---
+VERSION="VERSION_PLACEHOLDER"
+if [ -n "$APPIMAGE_PATH" ]; then
+    # Store icon in local/share to keep root clean
+    ICON_PATH="${SHARE_BASE}/retroarch.svg"
+    if [ -f "${HERE}/retroarch.svg" ] && [ ! -f "$ICON_PATH" ]; then
+        mkdir -p "${SHARE_BASE}"
+        cp "${HERE}/retroarch.svg" "$ICON_PATH"
+    fi
+
+    DESKTOP_CONTENT="[Desktop Entry]
+Version=1.0
+Type=Application
+Name=APP_NAME_PLACEHOLDER ${VERSION}
+Comment=Play classic games
+Exec=\"$APPIMAGE_PATH\"
+Icon=$ICON_PATH
+Terminal=false
+Categories=Game;Emulator;"
+
+    # 1. Desktop Shortcut
+    if [ -d "$HOME/Desktop" ]; then
+        DESKTOP_FILE="$HOME/Desktop/APP_NAME_PLACEHOLDER ${VERSION}.desktop"
+        echo "Updating Desktop Shortcut: $DESKTOP_FILE"
+        echo "$DESKTOP_CONTENT" > "$DESKTOP_FILE"
+        chmod +x "$DESKTOP_FILE"
+    fi
+
+    # 2. Applications Menu Shortcut
+    APPS_DIR="$HOME/.local/share/applications"
+    mkdir -p "$APPS_DIR"
+    MENU_FILE="$APPS_DIR/app-name-placeholder-${VERSION}.desktop"
+    echo "Updating Menu Shortcut: $MENU_FILE"
+    echo "$DESKTOP_CONTENT" > "$MENU_FILE"
+    chmod +x "$MENU_FILE"
+
+    # 3. Refresh Desktop Database
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database "$APPS_DIR"
+    fi
+fi
+
+# --- Configuration Generation & Re-basing ---
+RA_CFG="${CFG_BASE}/retroarch.cfg"
+
+if [ ! -f "${RA_CFG}" ]; then
+    echo "Creating hierarchical portable configuration..."
+    cat <<EOF > "${RA_CFG}"
+# --- Hierarchical Portable Paths ---
+
+# Bundled & Synced (local/share)
+libretro_directory = "${SHARE_BASE}/libretro/cores"
+assets_directory = "${SHARE_BASE}/retroarch/assets"
+joypad_autoconfig_dir = "${SHARE_BASE}/retroarch/autoconfig"
+
+# Config & User Data (config/)
+rgui_config_directory = "${CFG_BASE}"
+libretro_info_path = "${CFG_BASE}/cores"
+database_directory = "${CFG_BASE}/database"
+content_database_path = "${CFG_BASE}/database/rdb"
+video_shader_dir = "${CFG_BASE}/shaders"
+savefile_directory = "${CFG_BASE}/saves"
+savestate_directory = "${CFG_BASE}/states"
+screenshot_directory = "${CFG_BASE}/screenshots"
+cheat_database_path = "${CFG_BASE}/cheats"
+overlay_directory = "${CFG_BASE}/overlays"
+input_remapping_directory = "${CFG_BASE}/remaps"
+playlist_directory = "${CFG_BASE}/playlists"
+thumbnails_directory = "${CFG_BASE}/thumbnails"
+log_dir = "${CFG_BASE}/logs"
+core_assets_directory = "${CFG_BASE}/downloads"
+
+# System/BIOS
+system_directory = "${SYSTEM_BASE}"
+
+# Optimal Drivers
+video_driver = "vulkan"
+menu_driver = "ozone"
+audio_driver = "pulse"
+input_driver = "sdl2"
+EOF
+    # Create writable subdirs
+    mkdir -p "${CFG_BASE}/saves" "${CFG_BASE}/states" "${CFG_BASE}/screenshots" \
+             "${CFG_BASE}/cheats" "${CFG_BASE}/overlays" "${CFG_BASE}/remaps" \
+             "${CFG_BASE}/playlists" "${CFG_BASE}/thumbnails" "${CFG_BASE}/logs" \
+             "${CFG_BASE}/downloads"
+else
+    # --- Path Re-basing (True Portability) ---
+    # Detect if moved by checking rgui_config_directory
+    OLD_PATH=$(grep "rgui_config_directory =" "${RA_CFG}" | cut -d'"' -f2)
+    
+    if [ -n "$OLD_PATH" ] && [ "$OLD_PATH" != "${CFG_BASE}" ]; then
+        echo "AppImage moved! Re-basing paths from $OLD_PATH to ${CFG_BASE}..."
+        OLD_ESCAPED=$(echo "$OLD_PATH" | sed 's/\//\\\//g')
+        NEW_ESCAPED=$(echo "${CFG_BASE}" | sed 's/\//\\\//g')
+        # We also need to re-base the root for the other subfolders
+        OLD_ROOT=$(echo "$OLD_PATH" | sed 's/\/config$//')
+        NEW_ROOT="${PORTABLE_ROOT}"
+        OLD_ROOT_ESCAPED=$(echo "$OLD_ROOT" | sed 's/\//\\\//g')
+        NEW_ROOT_ESCAPED=$(echo "$NEW_ROOT" | sed 's/\//\\\//g')
+        
+        sed -i "s/${OLD_ROOT_ESCAPED}/${NEW_ROOT_ESCAPED}/g" "${RA_CFG}"
+    fi
+fi
+
+# Launch RetroArch
+exec "${HERE}/usr/bin/retroarch" -c "${RA_CFG}" --fullscreen "$@"
