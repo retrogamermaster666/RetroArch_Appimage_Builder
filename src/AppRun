@@ -18,6 +18,12 @@ else
     APPIMAGE_PATH=""
 fi
 
+# Set XDG variables for true portability (redirects many cores' configs)
+export XDG_CONFIG_HOME="${PORTABLE_ROOT}/config"
+export XDG_DATA_HOME="${PORTABLE_ROOT}/local/share"
+export XDG_CACHE_HOME="${PORTABLE_ROOT}/cache"
+mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
+
 # Define the Hierarchical Structure
 CFG_BASE="${PORTABLE_ROOT}/config"
 SHARE_BASE="${PORTABLE_ROOT}/local/share"
@@ -47,6 +53,10 @@ sync_resource "${HERE}/usr/share/retroarch/assets"   "${SHARE_BASE}/retroarch/as
 sync_resource "${HERE}/usr/share/retroarch/database" "${CFG_BASE}/database"
 sync_resource "${HERE}/usr/share/retroarch/autoconfig" "${SHARE_BASE}/retroarch/autoconfig"
 sync_resource "${HERE}/usr/share/retroarch/shaders/shaders_slang" "${CFG_BASE}/shaders"
+sync_resource "${HERE}/usr/share/retroarch/filters/audio" "${CFG_BASE}/filters/audio"
+sync_resource "${HERE}/usr/share/retroarch/filters/video" "${CFG_BASE}/filters/video"
+sync_resource "${HERE}/usr/share/retroarch/overlays" "${CFG_BASE}/overlays"
+sync_resource "${HERE}/usr/share/retroarch/cheats"   "${CFG_BASE}/cheats"
 
 # --- Auto-Desktop Shortcut Feature ---
 VERSION="VERSION_PLACEHOLDER"
@@ -109,6 +119,8 @@ libretro_info_path = "${CFG_BASE}/cores"
 database_directory = "${CFG_BASE}/database"
 content_database_path = "${CFG_BASE}/database/rdb"
 video_shader_dir = "${CFG_BASE}/shaders"
+audio_filter_dir = "${CFG_BASE}/filters/audio"
+video_filter_dir = "${CFG_BASE}/filters/video"
 savefile_directory = "${CFG_BASE}/saves"
 savestate_directory = "${CFG_BASE}/states"
 screenshot_directory = "${CFG_BASE}/screenshots"
@@ -128,30 +140,58 @@ video_driver = "vulkan"
 menu_driver = "ozone"
 audio_driver = "pulse"
 input_driver = "sdl2"
+video_fullscreen = "true"
 EOF
     # Create writable subdirs
     mkdir -p "${CFG_BASE}/saves" "${CFG_BASE}/states" "${CFG_BASE}/screenshots" \
              "${CFG_BASE}/cheats" "${CFG_BASE}/overlays" "${CFG_BASE}/remaps" \
              "${CFG_BASE}/playlists" "${CFG_BASE}/thumbnails" "${CFG_BASE}/logs" \
-             "${CFG_BASE}/downloads"
+             "${CFG_BASE}/downloads" "${CFG_BASE}/filters/audio" "${CFG_BASE}/filters/video" \
+             "${CFG_BASE}/config" "${CFG_BASE}/assets" # some extra ones
 else
     # --- Path Re-basing (True Portability) ---
-    # Detect if moved by checking rgui_config_directory
-    OLD_PATH=$(grep "rgui_config_directory =" "${RA_CFG}" | cut -d'"' -f2)
     
-    if [ -n "$OLD_PATH" ] && [ "$OLD_PATH" != "${CFG_BASE}" ]; then
+    # Function to update or add a config entry
+    update_cfg() {
+        local key="$1"
+        local value="$2"
+        if grep -q "^${key} =" "${RA_CFG}"; then
+            sed -i "s|^${key} =.*|${key} = \"${value}\"|" "${RA_CFG}"
+        else
+            echo "${key} = \"${value}\"" >> "${RA_CFG}"
+        fi
+    }
+
+    # 1. Re-base absolute paths if the portable folder was moved
+    OLD_PATH=$(grep "^rgui_config_directory =" "${RA_CFG}" | sed -E 's/^[^=]*= "?([^"]*)"?/\1/')
+    if [ -n "$OLD_PATH" ] && [ "$OLD_PATH" != "${CFG_BASE}" ] && [ "$OLD_PATH" != "/" ]; then
         echo "AppImage moved! Re-basing paths from $OLD_PATH to ${CFG_BASE}..."
-        OLD_ESCAPED=$(echo "$OLD_PATH" | sed 's/\//\\\//g')
-        NEW_ESCAPED=$(echo "${CFG_BASE}" | sed 's/\//\\\//g')
-        # We also need to re-base the root for the other subfolders
         OLD_ROOT=$(echo "$OLD_PATH" | sed 's/\/config$//')
         NEW_ROOT="${PORTABLE_ROOT}"
-        OLD_ROOT_ESCAPED=$(echo "$OLD_ROOT" | sed 's/\//\\\//g')
-        NEW_ROOT_ESCAPED=$(echo "$NEW_ROOT" | sed 's/\//\\\//g')
-        
-        sed -i "s/${OLD_ROOT_ESCAPED}/${NEW_ROOT_ESCAPED}/g" "${RA_CFG}"
+        if [ -n "$OLD_ROOT" ] && [ "$OLD_ROOT" != "/" ]; then
+            OLD_ROOT_ESCAPED=$(echo "$OLD_ROOT" | sed 's/\//\\\//g')
+            NEW_ROOT_ESCAPED=$(echo "$NEW_ROOT" | sed 's/\//\\\//g')
+            sed -i "s/${OLD_ROOT_ESCAPED}/${NEW_ROOT_ESCAPED}/g" "${RA_CFG}"
+        fi
     fi
+
+    # 2. Force-redirect critical paths to ensure true portability
+    # This overrides any system paths (like ~/.config/retroarch) that might have leaked in
+    echo "Enforcing portable path structure..."
+    update_cfg "libretro_directory" "${SHARE_BASE}/libretro/cores"
+    update_cfg "assets_directory" "${SHARE_BASE}/retroarch/assets"
+    update_cfg "joypad_autoconfig_dir" "${SHARE_BASE}/retroarch/autoconfig"
+    update_cfg "rgui_config_directory" "${CFG_BASE}"
+    update_cfg "libretro_info_path" "${CFG_BASE}/cores"
+    update_cfg "database_directory" "${CFG_BASE}/database"
+    update_cfg "content_database_path" "${CFG_BASE}/database/rdb"
+    update_cfg "video_shader_dir" "${CFG_BASE}/shaders"
+    update_cfg "audio_filter_dir" "${CFG_BASE}/filters/audio"
+    update_cfg "video_filter_dir" "${CFG_BASE}/filters/video"
+    update_cfg "cheat_database_path" "${CFG_BASE}/cheats"
+    update_cfg "overlay_directory" "${CFG_BASE}/overlays"
+    update_cfg "system_directory" "${SYSTEM_BASE}"
 fi
 
 # Launch RetroArch
-exec "${HERE}/usr/bin/retroarch" -c "${RA_CFG}" --fullscreen "$@"
+exec "${HERE}/usr/bin/retroarch" -c "${RA_CFG}" "$@"

@@ -204,7 +204,11 @@ def fetch_assets():
         "assets": "https://github.com/libretro/retroarch-assets.git",
         "database": "https://github.com/libretro/libretro-database.git",
         "autoconfig": "https://github.com/libretro/retroarch-joypad-autoconfig.git",
-        "shaders/shaders_slang": "https://github.com/libretro/slang-shaders.git"
+        "shaders/shaders_slang": "https://github.com/libretro/slang-shaders.git",
+        "filters/audio": "https://github.com/libretro/retroarch-audio-filters.git",
+        "filters/video": "https://github.com/libretro/retroarch-video-filters.git",
+        "overlays": "https://github.com/libretro/retroarch-overlays.git",
+        "cheats": "https://github.com/libretro/libretro-cheat.git"
     }
     
     for name, url in assets_map.items():
