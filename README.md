@@ -32,11 +32,14 @@ To build a specific version of RetroArch:
 - A list of all available cores for Raspberry Pi 5 is provided in the `"available_cores"` section of the JSON file for reference.
 
 ### Currently Configured Cores
-The following cores are currently configured to be built:
+The builder is currently configured to build a comprehensive set of **111 cores**, including:
 
-- **Nintendo (NES):** `bnes`
-- **Super Nintendo (SNES):** `snes9x`
-- **Sega Mega Drive / Genesis:** `genesis_plus_gx`
+- **Nintendo:** `bnes`, `snes9x`, `mesen`, `mgba`, `gambatte`, `melonds`, `mupen64plus_next` (use with caution), `pokemini`, `vb`
+- **Sega:** `genesis_plus_gx`, `picodrive`, `flycast` (if available), `saturn`
+- **Sony PlayStation:** `swanstation`, `pcsx_rearmed`, `pcsx1`, `mednafen_psx`, `mednafen_psx_hw`
+- **Arcade:** `mame`, `mame2003_plus`, `fbneo`, `neocd`
+- **Computers:** `dosbox_pure`, `scummvm`, `puae`, `vice_x64sc`, `fuse`, `hatari`
+- **Others:** `ppsspp`, `dolphin`, `opera`, `prosystem`, `stella`, `2048`, and many more.
 
 > [!IMPORTANT]
 > **Nintendo 64 (N64) Support:** N64 cores are currently not recommended for this ARM-based AppImage build due to compatibility issues. For the best N64 experience on Linux/ARM, it is highly recommended to install [**RMG (Rosalie's Mupen GUI)** via Flathub](https://flathub.org/en/apps/com.github.Rosalie241.RMG), which works exceptionally well.
@@ -46,7 +49,7 @@ Execute the main script:
 ```bash
 python main_builder.py
 ```
-*Note: This process is comprehensive and will take approximately 10 minutes on a Raspberry Pi 5 with the current configuration, as it compiles RetroArch, builds cores, and bundles all assets (icons, databases, joypad configs, and shaders).*
+*Note: This process is extremely comprehensive and will take approximately **10 to 12 hours** on a Raspberry Pi 5 with the current configuration of 111 cores, as it compiles RetroArch, builds each core individually, and bundles all assets (icons, databases, joypad configs, shaders, filters, and cheats).*
 
 ### 4. Locate and Use the AppImage
 Once finished, look in the `dist/` directory. Your AppImage will be inside a versioned subfolder:
