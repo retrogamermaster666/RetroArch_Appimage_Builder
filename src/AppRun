@@ -19,13 +19,13 @@ else
 fi
 
 # Set XDG variables for true portability (redirects many cores' configs)
-export XDG_CONFIG_HOME="${PORTABLE_ROOT}"
+export XDG_CONFIG_HOME="${PORTABLE_ROOT}/config"
 export XDG_DATA_HOME="${PORTABLE_ROOT}/local/share"
 export XDG_CACHE_HOME="${PORTABLE_ROOT}/cache"
-mkdir -p "${XDG_CONFIG_HOME}/config" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
+mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
 
 # Define the Hierarchical Structure
-CFG_BASE="${PORTABLE_ROOT}/config"
+CFG_BASE="${XDG_CONFIG_HOME}"
 SHARE_BASE="${PORTABLE_ROOT}/local/share"
 SYSTEM_BASE="${PORTABLE_ROOT}/system/bios"
 
