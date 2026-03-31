@@ -18,13 +18,15 @@ else
     APPIMAGE_PATH=""
 fi
 
-# Set XDG variables for true portability (redirects many cores' configs)
+# Set XDG variables for true portability.
+# This redirects PulseAudio, Vulkan layers, and various core configurations into the portable folder.
 export XDG_CONFIG_HOME="${PORTABLE_ROOT}/config"
 export XDG_DATA_HOME="${PORTABLE_ROOT}/local/share"
 export XDG_CACHE_HOME="${PORTABLE_ROOT}/cache"
 mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
 
-# Define the Hierarchical Structure
+# Define the Hierarchical Structure.
+# All RetroArch settings and PulseAudio state live in CFG_BASE (config/).
 CFG_BASE="${XDG_CONFIG_HOME}"
 SHARE_BASE="${PORTABLE_ROOT}/local/share"
 SYSTEM_BASE="${PORTABLE_ROOT}/system/bios"
@@ -142,7 +144,7 @@ audio_driver = "pulse"
 input_driver = "sdl2"
 video_fullscreen = "true"
 EOF
-    # Create writable subdirs
+    # Create necessary writable subdirectories within the portable config folder.
     mkdir -p "${CFG_BASE}/saves" "${CFG_BASE}/states" "${CFG_BASE}/screenshots" \
              "${CFG_BASE}/cheats" "${CFG_BASE}/overlays" "${CFG_BASE}/remaps" \
              "${CFG_BASE}/playlists" "${CFG_BASE}/thumbnails" "${CFG_BASE}/logs" \
