@@ -190,6 +190,7 @@ else
     update_cfg "video_filter_dir" "${CFG_BASE}/filters/video"
     update_cfg "cheat_database_path" "${CFG_BASE}/cheats"
     update_cfg "overlay_directory" "${CFG_BASE}/overlays"
+    update_cfg "input_remapping_directory" "${CFG_BASE}/remaps"
     update_cfg "system_directory" "${SYSTEM_BASE}"
 fi
 

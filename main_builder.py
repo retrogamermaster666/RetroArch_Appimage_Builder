@@ -155,6 +155,60 @@ def build_retroarch(config):
     log("Installing RetroArch to AppDir...")
     run(["make", "install", f"DESTDIR={APPDIR.resolve()}"], cwd=ra_dir)
 
+def build_filters():
+    log("--- Building Audio and Video Filters from Source ---")
+    ra_dir = BUILD_DIR / "RetroArch"
+    if not ra_dir.exists():
+        log("ERROR: RetroArch source not found. Cannot build filters.")
+        return
+
+    # Audio Filters
+    audio_filters_src = ra_dir / "libretro-common" / "audio" / "dsp_filters"
+    if audio_filters_src.exists():
+        log("Compiling audio filters...")
+        try:
+            run(["make", f"-j{JOBS}"], cwd=audio_filters_src)
+            
+            audio_filters_dest = APPDIR / "usr" / "share" / "retroarch" / "filters" / "audio"
+            audio_filters_dest.mkdir(parents=True, exist_ok=True)
+            
+            # Copy .dsp and .so files
+            for f in audio_filters_src.glob("*.dsp"):
+                shutil.copy2(f, audio_filters_dest)
+            for f in audio_filters_src.glob("*.so"):
+                shutil.copy2(f, audio_filters_dest)
+            log("Audio filters built and installed.")
+        except Exception as e:
+            log(f"Warning: Failed to build audio filters: {e}")
+    else:
+        log("Warning: Audio filters source not found.")
+
+    # Video Filters
+    video_filters_src = ra_dir / "gfx" / "video_filters"
+    if video_filters_src.exists():
+        log("Compiling video filters...")
+        try:
+            run(["make", f"-j{JOBS}"], cwd=video_filters_src)
+            
+            video_filters_dest = APPDIR / "usr" / "share" / "retroarch" / "filters" / "video"
+            video_filters_dest.mkdir(parents=True, exist_ok=True)
+            
+            # Copy .filt and .so files
+            for f in video_filters_src.glob("*.filt"):
+                shutil.copy2(f, video_filters_dest)
+            for f in video_filters_src.glob("*.so"):
+                shutil.copy2(f, video_filters_dest)
+                
+            # Also copy snes_ntsc subdirectory if it exists
+            snes_ntsc_src = video_filters_src / "snes_ntsc"
+            if snes_ntsc_src.exists():
+                shutil.copytree(snes_ntsc_src, video_filters_dest / "snes_ntsc", dirs_exist_ok=True)
+            log("Video filters built and installed.")
+        except Exception as e:
+            log(f"Warning: Failed to build video filters: {e}")
+    else:
+        log("Warning: Video filters source not found.")
+
 def build_cores(config):
     cores = config.get("core_to_build", [])
     if not cores:
@@ -205,10 +259,7 @@ def fetch_assets():
         "database": "https://github.com/libretro/libretro-database.git",
         "autoconfig": "https://github.com/libretro/retroarch-joypad-autoconfig.git",
         "shaders/shaders_slang": "https://github.com/libretro/slang-shaders.git",
-        "filters/audio": "https://github.com/libretro/retroarch-audio-filters.git",
-        "filters/video": "https://github.com/libretro/retroarch-video-filters.git",
-        "overlays": "https://github.com/libretro/retroarch-overlays.git",
-        "cheats": "https://github.com/libretro/libretro-cheat.git"
+        "overlays": "https://github.com/libretro/common-overlays.git"
     }
     
     for name, url in assets_map.items():
@@ -499,6 +550,7 @@ def main():
         setup_directories()
         install_dependencies()
         build_retroarch(config)
+        build_filters()
         build_cores(config)
         bundle_dependencies()
         fetch_assets()
