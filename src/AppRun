@@ -19,10 +19,10 @@ else
 fi
 
 # Set XDG variables for true portability (redirects many cores' configs)
-export XDG_CONFIG_HOME="${PORTABLE_ROOT}/config"
+export XDG_CONFIG_HOME="${PORTABLE_ROOT}"
 export XDG_DATA_HOME="${PORTABLE_ROOT}/local/share"
 export XDG_CACHE_HOME="${PORTABLE_ROOT}/cache"
-mkdir -p "${XDG_CONFIG_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
+mkdir -p "${XDG_CONFIG_HOME}/config" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}"
 
 # Define the Hierarchical Structure
 CFG_BASE="${PORTABLE_ROOT}/config"
@@ -146,8 +146,7 @@ EOF
     mkdir -p "${CFG_BASE}/saves" "${CFG_BASE}/states" "${CFG_BASE}/screenshots" \
              "${CFG_BASE}/cheats" "${CFG_BASE}/overlays" "${CFG_BASE}/remaps" \
              "${CFG_BASE}/playlists" "${CFG_BASE}/thumbnails" "${CFG_BASE}/logs" \
-             "${CFG_BASE}/downloads" "${CFG_BASE}/filters/audio" "${CFG_BASE}/filters/video" \
-             "${CFG_BASE}/config" "${CFG_BASE}/assets" # some extra ones
+             "${CFG_BASE}/downloads" "${CFG_BASE}/filters/audio" "${CFG_BASE}/filters/video"
 else
     # --- Path Re-basing (True Portability) ---
     
